@@ -10,8 +10,8 @@ fi
 
 lex -o ./src/lex.yy.c ./parser/shell.l
 make
-#if [ $? -eq 0 ]; then
-#	make run
-#else
-#	@echo make failed 
-#fi
+if [ $? -eq 0 ]; then
+	make run
+else
+	@echo make failed 
+fi
