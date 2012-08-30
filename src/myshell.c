@@ -40,14 +40,20 @@ struct childProc {
 };
 
 
-int main() {
-  int i;
-  char **args; 
+/* Run a particular command */
+int run(job *toRun, jobSet *list, short isBg) {
+}
 
-  while(1) {
+
+int main() {
+    int i;
+    char **args;
+
+    while(1) {
     args = getline_custom();
-    for(i = 0; args[i] != NULL; i++) {
-      printf("Argument %d: %s\n", i, args[i]);
+        for(i = 0; args[i] != NULL; i++) {
+            printf("Argument %d: %s\n", i, args[i]);
+            //allocate memory for job once here. No pass by value.
+        }
     }
-  }
 }
