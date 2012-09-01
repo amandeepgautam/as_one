@@ -66,6 +66,8 @@ struct childProc {
 
 /* Run a particular command */
 int run(job *toRun, jobSet *list, short isBg) {
+    printf("sdfsvfjshb<<<<<\n");
+    fflush(stdout);
     job *alias;
     int in, out, customfds;
     int fds[2], controlfds[2];                 /* fd[0] for reading */
@@ -173,7 +175,40 @@ int run(job *toRun, jobSet *list, short isBg) {
 }
 
 void removeJob(jobSet *job_info, job *toRemove) {
-    
+    printf("job remove called\n");
+    if(job_info && toRemove)
+    {	
+		if(job_info->fg == toRemove) {
+			job_info->fg = NULL;
+		}
+		
+		job* prev = job_info->head;
+		printf("head%d\n",prev);
+		// head is being removed
+		if(job_info->head == toRemove) {
+			job_info->head = job_info->head->next;
+			printf("deleting job%d\n",toRemove);
+			free(toRemove);
+			return;
+		}
+		else {
+			while(prev->next!=NULL && prev->next != toRemove) {
+				prev=prev->next;
+			}
+			if(prev->next == NULL) {
+				printf("The job you are trying to delete is not found");
+				return;
+			}
+			if(prev->next == toRemove) {
+				prev->next = prev->next->next;
+				printf("deleting job%d\n",toRemove);
+				free(toRemove);
+			}
+		}
+	}
+	else {
+		printf("one of the passed variable is NULL cant delete");
+	}
 }
 
 void checkJobs( jobSet *list ) {
@@ -183,7 +218,7 @@ void checkJobs( jobSet *list ) {
 }
 
 int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
-    
+    printf("parse called\n");
     int i=-1,x=-1,j=job_id,t;
     while(i==-1 || args[i]!=NULL) {
         
@@ -319,6 +354,7 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
         (*job_elem)->numProg = noOfProg;
         j++;
     }
+    printf("parse returning\n");
     return j-1;//job_id of final job created if single job created then same as passed
 }
 
@@ -329,18 +365,21 @@ int main(void) {
     jobSet* job_info = (jobSet*) malloc(sizeof(jobSet));
     job* job_elem;
     int job_id = 1;
+    
     while(1) {
+		printf("loop begin<<<<<\n");
         if(!job_info->fg) {
-			//printf("sdfsvfjshb<<<<<\n");
             args = getline_custom();
-            //printf("sdfsvfjshb<<<<<\n");
+            printf("ififififif<<<<<\n");
             int newjob_id = parse(args,job_id,&job_info,&job_elem);
+           // printf("dummy removing job withjob id is%d, and address %d\n",job_elem->jobId,job_elem);
+            printf("checking head prop job%d and fg %d\n",job_info->head,job_info->fg);
             int job_count = newjob_id-job_id+1;
             job_id=newjob_id++;
             
             int i;
             job* toRun = job_elem;
-            //printf("going top execute job\n");
+            printf("going to execute job these no.%d\n",job_count);
             for(i=0;i<job_count;i++) {
                 if(toRun!=NULL) {
                     //printf("job is %d pointer %d\n",i,toRun);
@@ -353,7 +392,7 @@ int main(void) {
             }            
             
         } else {
-			//printf(">??????\n");
+			printf("elseelseelse\n");
             /* Wait for process in fg */
             int g=0;
             while(!(job_info->fg->child[g].pid) ||
@@ -361,8 +400,14 @@ int main(void) {
                 ++g;
             }
             /* wait for some child process if it is still running */
+            int k=0;
+            while(job_info->fg->child[g].argv[k]!=NULL) {
+				printf("child process running is %s\n",job_info->fg->child[g].argv[k]);
+				k++;
+			}
+			printf("wait called\n");
             waitpid(job_info->fg->child[g].pid, &status, WUNTRACED);
-            
+            printf("wait over\n");
             if( WIFSIGNALED(status) && 
                     (WTERMSIG(status) != SIGINT) ) {
                 printf ("%s\n", strsignal(status));
@@ -400,6 +445,12 @@ int main(void) {
 				}
             }
         }
+		
+		/*
+		printf("removing job withjob id is%d, and address %d\n",job_elem->jobId,job_elem);
+		removeJob(job_info,job_elem);
+		printf("printing status of job_info %d, and fg %d\n",job_info->head,job_info->fg);
+		*/
     }
 }
 
