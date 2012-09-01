@@ -1,0 +1,35 @@
+Shell: Design document
+Purpose
+The purpose of this assignment is to design and implement a shell which takes input command from the user, parses it and finally executes it. 
+
+Available Resources
+Apart from the standard C libraries, we have used Lex tool to tokenize the user command. The implementation 
+of this lex file was given to us along with the initial codes in myshell.c which we have further developed 
+to support all the functionalities.
+
+For version control purposes, we have used GIT.
+
+Design
+data structures:
+	jobSet: 	This structrue stores the head of the list of jobs and the current foreground process.
+	job:		Stroes the list of child processes in this particular job. It also maintains some metadata 
+				about a job like jobId, number of running processes etc. For eg. a job would be like 
+				ls | sort>out.txt
+	childProc:	This data structure stores the information about a single child process which is a part of a job.
+				For eg. a child process with reference to above example is ls and sort>out.txt
+	redirection:This data structure stores about the type of redirection and how to handle it.
+
+void parse(char **ar, jobSet*, job** )
+
+The parse function takes input and creates a job adds it to the linked list, also it create child process and 
+sets the command for them and makes everything ready for the run command to execute.
+
+int run(job*,  jobSet*, short isBg)
+@param retrun value : returns whether the program returned successfully or not.
+This command will run all child processes in a particular job and store their exiting states in the linked 
+list and later while retrieving the status a job, we say it completes only when all the child processes 
+are completed successfully.
+
+Testing
+The testing strategy is to run various combinations of commands and check the output. The shell should 
+not crash in any circunstance. Appropriate error messages must be displayed in case of invalid commands. 
