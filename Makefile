@@ -1,9 +1,9 @@
 TARGET	=	exec
 
 CC		=	gcc
-CFLAGS	= 	-g -Wall -I.
+CFLAGS	= 	-g -I.
 LINKER	=	gcc -o
-LFLAGS	= 	-Wall -I. -lm -lpthread
+LFLAGS	= 	-I. -lm -lpthread
 
 LEXER	=	lex -o
 
