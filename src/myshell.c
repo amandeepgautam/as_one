@@ -31,7 +31,7 @@ struct jobSet {
 
 enum redirectType {
     READ,
-    OVERWRITE,
+    WRITE,
     APPEND
 };
 
@@ -122,7 +122,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                         case APPEND:
                             mode = O_CREAT|O_RDWR|O_APPEND;
                             break;
-                        case OVERWRITE:
+                        case WRITE:
                             mode = O_CREAT|O_RDWR|O_TRUNC;
                             break;
                     }
@@ -214,9 +214,41 @@ void removeJob(jobSet *job_info, job *toRemove) {
 	}
 }
 
+void findJob(int pid, job** J, int* index) {
+	job* currJ = job_info->head;
+	while (currJ != NULL) {
+		for (i=0; i < currJ->NumProg; i++) {
+			if (currJ->child[i]->pid == pid) {
+				*J = currJ;
+				*index = i;
+				return;
+			}
+		}
+		currJ = currJ->next;
+	}
+}
+
 void checkJobs( jobSet *list ) {
-    while (1) {
-        
+    int status, index;
+    pid_t pid;
+    job * task;
+    /* Catch all the processes that have exited */
+    while( (pid = waitpid(-1, &status, WNOHANG|WUNTRACED)>0) {
+        findPid(pid, &task, &index);
+        if(WIFEXITED(status) && WEXITSTATUS(status)) {
+			task->runningProgs--;	/*Decrement the number of running programs*/
+			task->child[index].pid=0;
+			if(!task->runningProgs) {
+                printf("Done. Job id: %d\n", task->jobId);
+                removeJob(list, task);
+            }
+		} else {
+            task->stoppedChild++;
+            task->child[index].isStopped=1;
+            if(task->stoppedChild==task->numProg) {
+                printf("Stopped. Job id: %d\n", task->jobId);
+            }
+		}
     }
 }
 
@@ -298,7 +330,7 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
                     char* temp = (char*)malloc(strlen(args[i])+1);
                     memcpy(temp,&args[i],strlen(args[i])+1);
                     cprocess_list[k].redirectCount++;
-                    cprocess_list[k].redirectTo[0].type = OVERWRITE;
+                    cprocess_list[k].redirectTo[0].type = WRITE;
                     cprocess_list[k].redirectTo[0].fd=1;
                     cprocess_list[k].redirectTo[0].file_name=temp;
                 }
