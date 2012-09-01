@@ -66,19 +66,18 @@ struct childProc {
 
 /* Run a particular command */
 int run(job *toRun, jobSet *list, short isBg) {
-    printf("sdfsvfjshb<<<<<\n");
-    fflush(stdout);
     job *alias;
     int in, out, customfds;
     int fds[2], controlfds[2];                 /* fd[0] for reading */
+    
     if ( toRun->numProg ) {
         if(!strcmp(toRun->child[0].argv[0], "exit")) {
             exit(0);            /*exit the main terminal*/
         }
+        
         int i;
         in=0;                   /* STDIN */
         out=1;                  /* STDOUT */
-        //printf ("number of programs: %d\n", toRun->numProg);
         for(i=0; i<toRun->numProg; ++i) {
             /* Set the file descriptors for each process */
             if (i+1!=toRun->numProg) {
@@ -92,11 +91,11 @@ int run(job *toRun, jobSet *list, short isBg) {
             /* setup piping */
             if ( !(toRun->child[i].pid = fork()) ) {
                 /* SIGTTOU: send if child process attempts to write to tty */
-                signal(SIGTTOU, SIG_IGN);
+                signal(SIGTTOU, SIG_DFL);
                 /* close write side of the child */
                 close(controlfds[1]);
                 /* Wait till the process is not moved to proper group */
-                int ignore;
+                char ignore;
                 read(controlfds[0], &ignore , 1);
                 close(controlfds[0]);
 
@@ -105,7 +104,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                     close(out);
                 }
                 if(in!=0) {
-                    dup2(in, 1);
+                    dup2(in, 0);
                     close(in);
                 }
 
@@ -120,7 +119,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                             mode = O_CREAT|O_RDWR|O_APPEND;
                             break;
                         case OVERWRITE:
-                            mode = O_CREAT|O_RDWR|O_TRUNC;
+                            mode = O_CREAT|O_WRONLY|O_TRUNC;
                             break;
                     }
                     customfds = open(toRun->child[i].redirectTo[j].file_name, mode, 0666);
@@ -175,7 +174,7 @@ int run(job *toRun, jobSet *list, short isBg) {
 }
 
 void removeJob(jobSet *job_info, job *toRemove) {
-    printf("job remove called\n");
+   // printf("job remove called\n");
     if(job_info && toRemove)
     {	
 		if(job_info->fg == toRemove) {
@@ -183,11 +182,11 @@ void removeJob(jobSet *job_info, job *toRemove) {
 		}
 		
 		job* prev = job_info->head;
-		printf("head%d\n",prev);
+	//	printf("head%d\n",prev);
 		// head is being removed
 		if(job_info->head == toRemove) {
 			job_info->head = job_info->head->next;
-			printf("deleting job%d\n",toRemove);
+		//	printf("deleting job%d\n",toRemove);
 			free(toRemove);
 			return;
 		}
@@ -201,7 +200,7 @@ void removeJob(jobSet *job_info, job *toRemove) {
 			}
 			if(prev->next == toRemove) {
 				prev->next = prev->next->next;
-				printf("deleting job%d\n",toRemove);
+			//	printf("deleting job%d\n",toRemove);
 				free(toRemove);
 			}
 		}
@@ -218,7 +217,6 @@ void checkJobs( jobSet *list ) {
 }
 
 int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
-    printf("parse called\n");
     int i=-1,x=-1,j=job_id,t;
     while(i==-1 || args[i]!=NULL) {
         
@@ -232,23 +230,27 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
             break;
         }
         
+        // check empty command
         if(args[t]==NULL)
             break;
         
+        // dynamically creating job object and child process object
         *job_elem = (job*) malloc(sizeof(job));
         childProc *cprocess_list = (childProc *) malloc(sizeof(childProc)*MAXSIZE); 
-        if(j==1)
+        
+        // first job created, intialising head pointer
+        if((*job_info)->head==NULL)
             (*job_info)->head = *job_elem;
 
+		// setting data members of job object
         (*job_elem)->jobId = j;
         (*job_elem)->runningProgs = 0;
         (*job_elem)->next = NULL;	
         (*job_elem)->child = cprocess_list;
         (*job_info)->fg = *job_elem;
         
-        
+        // maintaining job list
         if((*job_info)->head != *job_elem) {
-            //printf("setting next job elem\n");
             job* temp = (*job_info)->head;
             while(temp->next != NULL)
                 temp = temp->next;
@@ -258,6 +260,8 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
         int k=0,in=-1,out=-1;
         int inc_k = 1;
         short bg_exist = 0;
+        
+        // for loop to create all process in a given job
         for(i = t; args[i] != NULL && *args[i] != ';' ; i++) {
             if(inc_k) {
                 cprocess_list[k].pid = -1;
@@ -268,72 +272,107 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
                 inc_k = 0;
             }
             
-            if(*args[i] == '<')  {
-                if(in!=-1) {
-                    printf("syntax error: more than one input indirection\n");
-                    continue;
-                }	
-                else {
-                    in = i++;
-                    char* temp = (char*)malloc(strlen(args[i])+1);
-                    memcpy(temp,&args[i],strlen(args[i])+1);
-                    cprocess_list[k].redirectCount++;
-                    cprocess_list[k].redirectTo[0].type = READ;
-                    cprocess_list[k].redirectTo[0].fd=0;
-                    cprocess_list[k].redirectTo[0].file_name=temp;
-                    //cprocess_list[k].inredir=temp;
-                    
-                }	
-            }
-            
-            else if(*args[i]=='>') {
-                if(out!=-1) {
-                    printf("syntax error: more than one output indirection\n");
-                    continue;
-                }	
-                else {	
-                    out = i++;
-                    char* temp = (char*)malloc(strlen(args[i])+1);
-                    memcpy(temp,&args[i],strlen(args[i])+1);
-                    cprocess_list[k].redirectCount++;
-                    cprocess_list[k].redirectTo[0].type = OVERWRITE;
-                    cprocess_list[k].redirectTo[0].fd=1;
-                    cprocess_list[k].redirectTo[0].file_name=temp;
-                }
-            }
-            else if(*args[i] == '&' ) {
+            // background process
+            if(*args[i] == '&' ) {
                     bg_exist = 1;
                     break;
             }
-            else if(*args[i] == '|' ) {
-                noOfProg++;
-                int l;
-                    
-                if(k<MAXSIZE) {				
-                    char** temp = (char**)malloc(sizeof(char*) * (i-x+1));						
-                    for(l = 0; l < i-x; l++) {
-                        temp[l] = (char*) malloc(strlen(args[x+l])+1);											
-                        memcpy(&temp[l],&args[x+l],strlen(args[x+l])+1);						
-                    }
-                    temp[i-x] = (char*) malloc(sizeof(char*));
-                    temp[i-x] = NULL;
-                    cprocess_list[k].argv = temp;
-                    k++;
-                    inc_k=1;
+            
+            // piping to create new process
+            if(*args[i] == '|' || *args[i] =='>' || *args[i] == '<') {
+                
+                int help = i;
+                
+				if(x!=i) {
+					noOfProg++;
+					int l;
+						
+					if(k<MAXSIZE) {				
+						char** temp = (char**)malloc(sizeof(char*) * (i-x+1));						
+						for(l = 0; l < i-x; l++) {
+							temp[l] = (char*) malloc(strlen(args[x+l])+1);											
+							memcpy(temp[l],args[x+l],strlen(args[x+l])+1);						
+						}
+						temp[i-x] = (char*) malloc(sizeof(char*));
+						temp[i-x] = NULL;
+						cprocess_list[k].argv = temp;
+						inc_k=1;
+					}
+					else
+						printf("size of child process list exceeded\n");
+					
                 }
-                else
-                    printf("size of child process list exceeded\n");					
+                    
+				// indirection operator
+				if(*args[i] == '<')  {
+					if(in!=-1) {
+						printf("syntax error: more than one input indirection\n");
+						continue;
+					}	
+					else {
+						in = i++;
+						char* temp = (char*)malloc(strlen(args[i])+1);
+						memcpy(temp,args[i],strlen(args[i])+1);
+						cprocess_list[k].redirectCount++;
+						cprocess_list[k].redirectTo[0].type = READ;
+						cprocess_list[k].redirectTo[0].fd=0;
+						cprocess_list[k].redirectTo[0].file_name=temp;
+					}	
+				}
+				
+				// outdirection operator
+				else if(*args[i]=='>') {
+					
+					if(args[i+1]!=NULL)
+						printf("argsi %s\n",args[i]);
+					else
+						printf("notset\n");
+					
+					if(args[i+1]!=NULL && *args[i+1]=='>') {
+						i++;
+						cprocess_list[k].redirectTo[0].type = APPEND;
+					}
+					else {
+					
+						cprocess_list[k].redirectTo[0].type = OVERWRITE;
+						printf("check2\n");
+					}	
+					
+					out = i++;
+					printf("check1\n");
+					
+					
+					fflush(stdout);
+					char* temp = (char*)malloc(strlen(args[i])+1);
+					memcpy(temp,args[i],strlen(args[i])+1);
+					printf("afzsdi %s\n",temp);
+					cprocess_list[k].redirectCount++;
+					cprocess_list[k].redirectTo[0].fd=1;
+					cprocess_list[k].redirectTo[0].file_name=temp;
+					printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>filename %s\n",temp);
+				}    
+				
+				int q=0;
+				while((*job_elem)->child[k].argv[q]!=NULL) {
+					printf("child no . %d args no %d value %s\n",k,q,(*job_elem)->child[k].argv[q]);
+					q++;
+				}
+					
+				if(*args[help] == '|')
+					k++;
+											
                 x=i+1;	
             }
 
-            if(args[i+1] == NULL || *args[i+1]==';') {			
+			//  end case
+            else if(args[i+1] == NULL || *args[i+1]==';') {			
                 int l;
                 if(k<MAXSIZE) {					
                     char** temp = (char**)malloc(sizeof(char*) * (i-x+2));
                     
                     for(l = 0; l < i-x+1; l++) {
                         temp[l] = (char*) malloc(strlen(args[x+l])+1);											
-                        memcpy(&temp[l],&args[x+l],strlen(args[x+l])+1);						
+                        memcpy(temp[l],args[x+l],strlen(args[x+l])+1);						
                     }
                     temp[i-x+1] = (char*) malloc(sizeof(char*));
                     temp[i-x+1] = NULL;
@@ -350,36 +389,36 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
             printf("'&' allowed only at the end of job\n");
             continue;
         }
+        
         (*job_elem)->isBg = bg_exist;
         (*job_elem)->numProg = noOfProg;
         j++;
+        
+      
+        
     }
-    printf("parse returning\n");
     return j-1;//job_id of final job created if single job created then same as passed
 }
 
 int main(void) {
-	signal(SIGTTOU, SIG_IGN);
     int status;
     char **args;
     jobSet* job_info = (jobSet*) malloc(sizeof(jobSet));
+    job_info->fg = NULL;
+    job_info->head = NULL;
     job* job_elem;
     int job_id = 1;
     
     while(1) {
-		printf("loop begin<<<<<\n");
         if(!job_info->fg) {
             args = getline_custom();
-            printf("ififififif<<<<<\n");
             int newjob_id = parse(args,job_id,&job_info,&job_elem);
-           // printf("dummy removing job withjob id is%d, and address %d\n",job_elem->jobId,job_elem);
-            printf("checking head prop job%d and fg %d\n",job_info->head,job_info->fg);
+			
             int job_count = newjob_id-job_id+1;
             job_id=newjob_id++;
             
             int i;
             job* toRun = job_elem;
-            printf("going to execute job these no.%d\n",job_count);
             for(i=0;i<job_count;i++) {
                 if(toRun!=NULL) {
                     //printf("job is %d pointer %d\n",i,toRun);
@@ -392,7 +431,6 @@ int main(void) {
             }            
             
         } else {
-			printf("elseelseelse\n");
             /* Wait for process in fg */
             int g=0;
             while(!(job_info->fg->child[g].pid) ||
@@ -400,14 +438,7 @@ int main(void) {
                 ++g;
             }
             /* wait for some child process if it is still running */
-            int k=0;
-            while(job_info->fg->child[g].argv[k]!=NULL) {
-				printf("child process running is %s\n",job_info->fg->child[g].argv[k]);
-				k++;
-			}
-			printf("wait called\n");
             waitpid(job_info->fg->child[g].pid, &status, WUNTRACED);
-            printf("wait over\n");
             if( WIFSIGNALED(status) && 
                     (WTERMSIG(status) != SIGINT) ) {
                 printf ("%s\n", strsignal(status));
@@ -424,25 +455,22 @@ int main(void) {
                     job_info->fg=NULL;
 					//printf("done: %d\n", getpid());
                 }
-                if(tcsetpgrp(0, getpid()))
-                    perror("Could not move shell to foreground\n");
             } else {
                 /* if the child was stopped */
                 job_info->fg->stoppedChild++;
                 job_info->fg->child[g].isStopped = 1;
                 if (job_info->fg->stoppedChild==job_info->fg->numProg) {
-                    printf ("Job Stopped: %d", job_info->fg->jobId);
                     job_info->fg=NULL;
                 }
             }
-
             /* move shell to foreground if all processes end */
             if(!job_info->fg) {
-                //printf("sdkljs\n");
+			   signal(SIGTTOU, SIG_IGN);
                 if(tcsetpgrp(0, getpid())) {
                     perror("Could not move shell to foreground\n");
-                    //printf("jjjj\n");
-				}
+                }
+                signal(SIGTTOU, SIG_DFL);
+
             }
         }
 		
