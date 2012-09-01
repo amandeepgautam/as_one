@@ -70,7 +70,7 @@ int run(job *toRun, jobSet *list, short isBg) {
     int in, out, customfds;
     int fds[2], controlfds[2];                 /* fd[0] for reading */
     
-    printf("begin%s\n",toRun->child[0].argv[0]);
+    
     
     if ( toRun->numProg ) {
         if(!strcmp(toRun->child[0].argv[0], "exit")) {
@@ -80,7 +80,7 @@ int run(job *toRun, jobSet *list, short isBg) {
         int i;
         in=0;                   /* STDIN */
         out=1;                  /* STDOUT */
-        printf("number 1:%d\n", toRun->numProg);
+        
         for(i=0; i<toRun->numProg; ++i) {
             /* Set the file descriptors for each process */
             if (i+1!=toRun->numProg) {
@@ -101,7 +101,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                 char ignore;
                 read(controlfds[0], &ignore , 1);
                 close(controlfds[0]);
-				printf("number 2:%d\n", i);
+				
                 if(out!=1) {
                     dup2(out, 1);
                     close(out);
@@ -114,7 +114,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                 /* overwrite redirection, if there */
                 int j, mode;
                 for(j=0; j<toRun->child[i].redirectCount; ++j) {
-                    printf("number 3:%d\n", i);
+                   
                     switch (toRun->child[i].redirectTo[j].type) {
                         case READ:
                             mode = O_RDONLY;
@@ -136,17 +136,11 @@ int run(job *toRun, jobSet *list, short isBg) {
                         close(customfds);
                     }
                 }
-                //printf("here");
-				//fflush(stdout);
-				printf("%d",i);
-				printf("here");
-				fflush(stdout);
-				printf("calling exec %s \n,",toRun->child[i].argv[0]);
-				
+               
 				
                 execvp(toRun->child[i].argv[0], toRun->child[i].argv);
-                //printf("from child\n");
-                fflush(stdout);
+               
+               
                 fprintf(stderr, "The call to %s failed: %s", 
                          toRun->child[i].argv[0], strerror(errno));
                 exit(1);
@@ -242,7 +236,7 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
         }
         
         // check empty command
-        if(args[t]==NULL || args[t]==';')
+        if(args[t]==NULL)
             break;
         
         // dynamically creating job object and child process object
@@ -334,40 +328,23 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
 				// outdirection operator
 				else if(*args[i]=='>') {
 					
-					if(args[i+1]!=NULL)
-						printf("argsi %s\n",args[i]);
-					else
-						printf("notset\n");
-					
 					if(args[i+1]!=NULL && *args[i+1]=='>') {
 						i++;
 						cprocess_list[k].redirectTo[0].type = APPEND;
 					}
 					else {
-					
 						cprocess_list[k].redirectTo[0].type = OVERWRITE;
-						//printf("check2\n");
 					}	
 					
 					out = i++;
-					//printf("check1\n");
-					
-					
-					fflush(stdout);
 					char* temp = (char*)malloc(strlen(args[i])+1);
 					memcpy(temp,args[i],strlen(args[i])+1);
-					//printf("afzsdi %s\n",temp);
+				
 					cprocess_list[k].redirectCount++;
 					cprocess_list[k].redirectTo[0].fd=1;
 					cprocess_list[k].redirectTo[0].file_name=temp;
-					//printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>filename %s\n",temp);
-				}    
 				
-				int q=0;
-				while((*job_elem)->child[k].argv[q]!=NULL) {
-					printf("child no . %d args no %d value %s\n",k,q,(*job_elem)->child[k].argv[q]);
-					q++;
-				}
+				}    
 					
 				if(*args[help] == '|')
 					k++;
