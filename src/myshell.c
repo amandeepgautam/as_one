@@ -93,6 +93,7 @@ int run(job *toRun, jobSet *list, short isBg) {
             pipe(controlfds);
             /* setup piping */
             if ( !(toRun->child[i].pid = fork()) ) {
+				printf("input from: %d output to %d\n", in, out);
                 /* SIGTTOU: send if child process attempts to write to tty */
                 signal(SIGTTOU, SIG_IGN);
                 /* close write side of the child */
@@ -156,7 +157,7 @@ int run(job *toRun, jobSet *list, short isBg) {
             if(out!=1) {
                 close(out);
             }
-            in=fds[0];
+            in=fds[1];
         }
         toRun->pgrp = toRun->child[0].pid;
         //printf("process group:%d\n", toRun->pgrp);
@@ -359,23 +360,30 @@ int main(void) {
             }            
             
         } else {
-			printf(">??????\n");
             /* Wait for process in fg */
             int g=0;
             while(!(job_info->fg->child[g].pid) ||
                     job_info->fg->child[g].isStopped) {
                 ++g;
             }
+            printf(">??????g is :%d\n", g);
             /* wait for some child process if it is still running */
             waitpid(job_info->fg->child[g].pid, &status, WUNTRACED);
-            
+            printf("wait over\n");
             if( WIFSIGNALED(status) && 
                     (WTERMSIG(status) != SIGINT) ) {
                 printf ("%s\n", strsignal(status));
-            }
+                printf("in here\n");
+                fflush(stdout);
+            } else {
+				printf("in else\n");
+                fflush(stdout);
+			}
             
             if(WIFEXITED(status) || 
                     WIFSIGNALED(status)) {
+                printf("in second if\n");
+                fflush(stdout);
                 /* child exited due to some reasons */
                 --(job_info->fg->runningProgs);
                 job_info->fg->child[g].pid = 0;
@@ -385,9 +393,9 @@ int main(void) {
                     job_info->fg=NULL;
 					//printf("done: %d\n", getpid());
                 }
-                if(tcsetpgrp(0, getpid()))
-                    perror("Could not move shell to foreground\n");
             } else {
+				printf("in second else\n");
+                fflush(stdout);
                 /* if the child was stopped */
                 job_info->fg->stoppedChild++;
                 job_info->fg->child[g].isStopped = 1;
@@ -396,13 +404,22 @@ int main(void) {
                     job_info->fg=NULL;
                 }
             }
-
+			printf("before giving command to shell\n" );
             /* move shell to foreground if all processes end */
             if(!job_info->fg) {
+				printf("in here\n" );
                 if(tcsetpgrp(0, getpid())) {
+                    printf("command given to shell\n" );
+                    fflush(stdout);
                     perror("Could not move shell to foreground\n");
-                }
-            }
+                } else {
+					printf("command not given to shell\n" );
+					fflush(stdout);
+				}
+                
+            } else {
+			    printf("command not given to shell\n" );
+			}
         }
     }
 }
