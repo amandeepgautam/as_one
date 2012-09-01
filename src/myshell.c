@@ -66,6 +66,8 @@ struct childProc {
 
 /* Run a particular command */
 int run(job *toRun, jobSet *list, short isBg) {
+    printf("sdfsvfjshb<<<<<\n");
+    fflush(stdout);
     job *alias;
     int in, out, customfds;
     int fds[2], controlfds[2];                 /* fd[0] for reading */
@@ -80,8 +82,6 @@ int run(job *toRun, jobSet *list, short isBg) {
         printf ("number of programs: %d\n", toRun->numProg);
 		fflush(stdout);
         for(i=0; i<toRun->numProg; ++i) {
-            printf ("loop times: %d\n", toRun->numProg);
-            fflush(stdout);
             /* Set the file descriptors for each process */
             if (i+1!=toRun->numProg) {
                 pipe(fds);
@@ -95,11 +95,11 @@ int run(job *toRun, jobSet *list, short isBg) {
             if ( !(toRun->child[i].pid = fork()) ) {
 				printf("input from: %d output to %d\n", in, out);
                 /* SIGTTOU: send if child process attempts to write to tty */
-                signal(SIGTTOU, SIG_IGN);
+                signal(SIGTTOU, SIG_DFL);
                 /* close write side of the child */
                 close(controlfds[1]);
                 /* Wait till the process is not moved to proper group */
-                int ignore;
+                char ignore;
                 read(controlfds[0], &ignore , 1);
                 close(controlfds[0]);
 
@@ -108,7 +108,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                     close(out);
                 }
                 if(in!=0) {
-                    dup2(in, 1);
+                    dup2(in, 0);
                     close(in);
                 }
 
@@ -157,7 +157,7 @@ int run(job *toRun, jobSet *list, short isBg) {
             if(out!=1) {
                 close(out);
             }
-            in=fds[1];
+            in=fds[0];
         }
         toRun->pgrp = toRun->child[0].pid;
         //printf("process group:%d\n", toRun->pgrp);
@@ -178,7 +178,40 @@ int run(job *toRun, jobSet *list, short isBg) {
 }
 
 void removeJob(jobSet *job_info, job *toRemove) {
-    
+    printf("job remove called\n");
+    if(job_info && toRemove)
+    {	
+		if(job_info->fg == toRemove) {
+			job_info->fg = NULL;
+		}
+		
+		job* prev = job_info->head;
+		printf("head%d\n",prev);
+		// head is being removed
+		if(job_info->head == toRemove) {
+			job_info->head = job_info->head->next;
+			printf("deleting job%d\n",toRemove);
+			free(toRemove);
+			return;
+		}
+		else {
+			while(prev->next!=NULL && prev->next != toRemove) {
+				prev=prev->next;
+			}
+			if(prev->next == NULL) {
+				printf("The job you are trying to delete is not found");
+				return;
+			}
+			if(prev->next == toRemove) {
+				prev->next = prev->next->next;
+				printf("deleting job%d\n",toRemove);
+				free(toRemove);
+			}
+		}
+	}
+	else {
+		printf("one of the passed variable is NULL cant delete");
+	}
 }
 
 void checkJobs( jobSet *list ) {
@@ -188,7 +221,6 @@ void checkJobs( jobSet *list ) {
 }
 
 int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
-    
     int i=-1,x=-1,j=job_id,t;
     while(i==-1 || args[i]!=NULL) {
         
@@ -335,17 +367,20 @@ int main(void) {
     job_info->head = NULL;
     job* job_elem;
     int job_id = 1;
+    
     while(1) {
         printf("start\n");
         if(!job_info->fg) {
             args = getline_custom();
             int newjob_id = parse(args,job_id,&job_info,&job_elem);
+            //printf("dummy removing job withjob id is%d, and address %d\n",job_elem->jobId,job_elem);
+            //printf("checking head prop job%d and fg %d\n",job_info->head,job_info->fg);
             int job_count = newjob_id-job_id+1;
             job_id=newjob_id++;
             
             int i;
             job* toRun = job_elem;
-            //printf("going top execute job\n");
+            printf("going to execute job these no.%d\n",job_count);
             for(i=0;i<job_count;i++) {
                 if(toRun!=NULL) {
                     //printf("job is %d pointer %d\n",i,toRun);
@@ -360,6 +395,7 @@ int main(void) {
             }            
             
         } else {
+			printf("elseelseelse\n");
             /* Wait for process in fg */
             int g=0;
             while(!(job_info->fg->child[g].pid) ||
@@ -368,6 +404,12 @@ int main(void) {
             }
             printf(">??????g is :%d\n", g);
             /* wait for some child process if it is still running */
+            int k=0;
+            while(job_info->fg->child[g].argv[k]!=NULL) {
+				printf("child process running is %s\n",job_info->fg->child[g].argv[k]);
+				k++;
+			}
+			printf("wait called\n");
             waitpid(job_info->fg->child[g].pid, &status, WUNTRACED);
             printf("wait over\n");
             if( WIFSIGNALED(status) && 
@@ -407,20 +449,20 @@ int main(void) {
 			printf("before giving command to shell\n" );
             /* move shell to foreground if all processes end */
             if(!job_info->fg) {
-				printf("in here\n" );
+			   signal(SIGTTOU, SIG_IGN);
                 if(tcsetpgrp(0, getpid())) {
-                    printf("command given to shell\n" );
-                    fflush(stdout);
                     perror("Could not move shell to foreground\n");
-                } else {
-					printf("command not given to shell\n" );
-					fflush(stdout);
-				}
-                
-            } else {
-			    printf("command not given to shell\n" );
-			}
+                }
+                signal(SIGTTOU, SIG_DFL);
+
+            }
         }
+		
+		/*
+		printf("removing job withjob id is%d, and address %d\n",job_elem->jobId,job_elem);
+		removeJob(job_info,job_elem);
+		printf("printing status of job_info %d, and fg %d\n",job_info->head,job_info->fg);
+		*/
     }
 }
 
