@@ -73,11 +73,15 @@ int run(job *toRun, jobSet *list, short isBg) {
         if(!strcmp(toRun->child[0].argv[0], "exit")) {
             exit(0);            /*exit the main terminal*/
         }
+        
         int i;
         in=0;                   /* STDIN */
         out=1;                  /* STDOUT */
-        //printf ("number of programs: %d\n", toRun->numProg);
+        printf ("number of programs: %d\n", toRun->numProg);
+		fflush(stdout);
         for(i=0; i<toRun->numProg; ++i) {
+            printf ("loop times: %d\n", toRun->numProg);
+            fflush(stdout);
             /* Set the file descriptors for each process */
             if (i+1!=toRun->numProg) {
                 pipe(fds);
@@ -323,17 +327,17 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
 }
 
 int main(void) {
-	signal(SIGTTOU, SIG_IGN);
     int status;
     char **args;
     jobSet* job_info = (jobSet*) malloc(sizeof(jobSet));
+    job_info->fg = NULL;
+    job_info->head = NULL;
     job* job_elem;
     int job_id = 1;
     while(1) {
+        printf("start\n");
         if(!job_info->fg) {
-			//printf("sdfsvfjshb<<<<<\n");
             args = getline_custom();
-            //printf("sdfsvfjshb<<<<<\n");
             int newjob_id = parse(args,job_id,&job_info,&job_elem);
             int job_count = newjob_id-job_id+1;
             job_id=newjob_id++;
@@ -345,6 +349,8 @@ int main(void) {
                 if(toRun!=NULL) {
                     //printf("job is %d pointer %d\n",i,toRun);
                     int a = run(toRun, job_info, toRun->isBg);
+                    printf("almost done\n");
+					fflush(stdout);
                     //printf("a is %d",a);
                     toRun = toRun->next;
                 }
@@ -353,7 +359,7 @@ int main(void) {
             }            
             
         } else {
-			//printf(">??????\n");
+			printf(">??????\n");
             /* Wait for process in fg */
             int g=0;
             while(!(job_info->fg->child[g].pid) ||
@@ -393,11 +399,9 @@ int main(void) {
 
             /* move shell to foreground if all processes end */
             if(!job_info->fg) {
-                //printf("sdkljs\n");
                 if(tcsetpgrp(0, getpid())) {
                     perror("Could not move shell to foreground\n");
-                    //printf("jjjj\n");
-				}
+                }
             }
         }
     }
