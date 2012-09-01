@@ -70,6 +70,8 @@ int run(job *toRun, jobSet *list, short isBg) {
     int in, out, customfds;
     int fds[2], controlfds[2];                 /* fd[0] for reading */
     
+    printf("begin%s\n",toRun->child[0].argv[0]);
+    
     if ( toRun->numProg ) {
         if(!strcmp(toRun->child[0].argv[0], "exit")) {
             exit(0);            /*exit the main terminal*/
@@ -78,6 +80,7 @@ int run(job *toRun, jobSet *list, short isBg) {
         int i;
         in=0;                   /* STDIN */
         out=1;                  /* STDOUT */
+        printf("number 1:%d\n", toRun->numProg);
         for(i=0; i<toRun->numProg; ++i) {
             /* Set the file descriptors for each process */
             if (i+1!=toRun->numProg) {
@@ -98,7 +101,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                 char ignore;
                 read(controlfds[0], &ignore , 1);
                 close(controlfds[0]);
-
+				printf("number 2:%d\n", i);
                 if(out!=1) {
                     dup2(out, 1);
                     close(out);
@@ -111,6 +114,7 @@ int run(job *toRun, jobSet *list, short isBg) {
                 /* overwrite redirection, if there */
                 int j, mode;
                 for(j=0; j<toRun->child[i].redirectCount; ++j) {
+                    printf("number 3:%d\n", i);
                     switch (toRun->child[i].redirectTo[j].type) {
                         case READ:
                             mode = O_RDONLY;
@@ -132,10 +136,17 @@ int run(job *toRun, jobSet *list, short isBg) {
                         close(customfds);
                     }
                 }
-
+                //printf("here");
+				//fflush(stdout);
+				printf("%d",i);
+				printf("here");
+				fflush(stdout);
+				printf("calling exec %s \n,",toRun->child[i].argv[0]);
+				
+				
                 execvp(toRun->child[i].argv[0], toRun->child[i].argv);
                 //printf("from child\n");
-                //fflush(stdout);
+                fflush(stdout);
                 fprintf(stderr, "The call to %s failed: %s", 
                          toRun->child[i].argv[0], strerror(errno));
                 exit(1);
@@ -220,7 +231,7 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
     int i=-1,x=-1,j=job_id,t;
     while(i==-1 || args[i]!=NULL) {
         
-        int noOfProg=1;
+        int noOfProg=0;
         t = i+1;
         x = i+1;
         
@@ -231,7 +242,7 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
         }
         
         // check empty command
-        if(args[t]==NULL)
+        if(args[t]==NULL || args[t]==';')
             break;
         
         // dynamically creating job object and child process object
@@ -335,21 +346,21 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
 					else {
 					
 						cprocess_list[k].redirectTo[0].type = OVERWRITE;
-						printf("check2\n");
+						//printf("check2\n");
 					}	
 					
 					out = i++;
-					printf("check1\n");
+					//printf("check1\n");
 					
 					
 					fflush(stdout);
 					char* temp = (char*)malloc(strlen(args[i])+1);
 					memcpy(temp,args[i],strlen(args[i])+1);
-					printf("afzsdi %s\n",temp);
+					//printf("afzsdi %s\n",temp);
 					cprocess_list[k].redirectCount++;
 					cprocess_list[k].redirectTo[0].fd=1;
 					cprocess_list[k].redirectTo[0].file_name=temp;
-					printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>filename %s\n",temp);
+					//printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>filename %s\n",temp);
 				}    
 				
 				int q=0;
@@ -393,9 +404,6 @@ int parse(char** args, int job_id, jobSet **job_info, job **job_elem) {
         (*job_elem)->isBg = bg_exist;
         (*job_elem)->numProg = noOfProg;
         j++;
-        
-      
-        
     }
     return j-1;//job_id of final job created if single job created then same as passed
 }
@@ -415,6 +423,11 @@ int main(void) {
             int newjob_id = parse(args,job_id,&job_info,&job_elem);
 			
             int job_count = newjob_id-job_id+1;
+            
+            if(job_count==0) {
+				continue;
+			}
+			
             job_id=newjob_id++;
             
             int i;
