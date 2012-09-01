@@ -3,7 +3,7 @@ TARGET	=	exec
 CC		=	gcc
 CFLAGS	= 	-g -Wall -I.
 LINKER	=	gcc -o
-LFLAGS	= 	-Wall -I. -lm
+LFLAGS	= 	-Wall -I. -lm -lpthread
 
 LEXER	=	lex -o
 
@@ -25,6 +25,5 @@ $(OBJECTS)			:	$(OBJDIR)/%.o :$(SRCDIR)/%.c
 .PHONY	: 	run
 run		:
 	./$(BINDIR)/$(TARGET)
-
 print:
 	@echo $(OBJECTS)
